@@ -1,0 +1,193 @@
+// src/pages/UserForm.jsx
+import { useState, useRef } from "react";
+import api from "../api/axios";
+
+export default function UserForm({ onCreated }) {
+  const [form, setForm] = useState({
+    username: "",
+    password: "",
+    role: "STAFF",
+    name: "",
+    employeeId: "",
+    designation: "",
+    department: "",
+    phone: "",
+    photo: "",
+  });
+
+  const [showPass, setShowPass] = useState(false);
+  const timerRef = useRef(null);
+
+  const togglePassword = () => {
+    setShowPass((prev) => !prev);
+
+    if (timerRef.current) clearTimeout(timerRef.current);
+
+    timerRef.current = setTimeout(() => {
+      setShowPass(false);
+    }, 10000);
+  };
+
+  const handlePhoto = (file) => {
+    if (!file) return;
+    if (!["image/jpeg", "image/png"].includes(file.type)) {
+      alert("Only JPG and PNG allowed");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () =>
+      setForm((p) => ({ ...p, photo: reader.result }));
+    reader.readAsDataURL(file);
+  };
+
+  const create = async () => {
+    if (!form.username || !form.password) {
+      alert("Fill required fields");
+      return;
+    }
+
+    await api.post("/users", form);
+
+    setForm({
+      username: "",
+      password: "",
+      role: "STAFF",
+      name: "",
+      employeeId: "",
+      designation: "",
+      department: "",
+      phone: "",
+      photo: "",
+    });
+
+    onCreated();
+  };
+
+  return (
+    <div className="bg-white shadow rounded-xl p-4 space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+
+        <input required
+          autoComplete="username"
+          className="border p-2 rounded"
+          placeholder="Username"
+          value={form.username}
+          onChange={(e) =>
+            setForm({ ...form, username: e.target.value })
+          }
+        />
+
+        <div className="relative">
+          <input required
+            autoComplete="new-password"
+            type={showPass ? "text" : "password"}
+            className="border p-2 rounded w-full pr-10"
+            placeholder="Password"
+            value={form.password}
+            onChange={(e) =>
+              setForm({ ...form, password: e.target.value })
+            }
+          />
+
+          <button
+            type="button"
+            onClick={togglePassword}
+            className="absolute right-2 top-1/2 -translate-y-1/2"
+            >
+            {showPass ? (
+                // Eye Closed
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C7 20 2.73 16.11 1 12c.73-1.68 1.79-3.18 3.06-4.44M9.9 4.24A10.94 10.94 0 0 1 12 4c5 0 9.27 3.89 11 8a11.05 11.05 0 0 1-4.24 5.36M1 1l22 22"/>
+                </svg>
+            ) : (
+                // Eye Open
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
+                <circle cx="12" cy="12" r="3"/>
+                </svg>
+            )}
+          </button>
+        </div>
+
+        <input
+          className="border p-2 rounded"
+          placeholder="Full Name"
+          value={form.name}
+          onChange={(e) =>
+            setForm({ ...form, name: e.target.value })
+          }
+        />
+
+        <input
+          className="border p-2 rounded"
+          placeholder="Employee ID"
+          value={form.employeeId}
+          onChange={(e) =>
+            setForm({ ...form, employeeId: e.target.value })
+          }
+        />
+
+        <input
+          className="border p-2 rounded"
+          placeholder="Designation"
+          value={form.designation}
+          onChange={(e) =>
+            setForm({ ...form, designation: e.target.value })
+          }
+        />
+
+        <select required
+          className="border p-2 rounded"
+          value={form.department}
+          onChange={(e) =>
+            setForm({ ...form, department: e.target.value })
+          }
+        >
+          <option value="">Select Department</option>
+          <option value="Sales">Sales</option>
+          <option value="IT">IT</option>
+          <option value="HR">HR</option>
+        </select>
+
+        <input required
+          className="border p-2 rounded"
+          placeholder="Phone"
+          value={form.phone}
+          onChange={(e) =>
+            setForm({ ...form, phone: e.target.value })
+          }
+        />
+
+        <input
+          type="file"
+          accept="image/png, image/jpeg"
+          className="border p-2 rounded"
+          onChange={(e) => handlePhoto(e.target.files[0])}
+        />
+
+        <select
+          className="border p-2 rounded"
+          value={form.role}
+          onChange={(e) =>
+            setForm({ ...form, role: e.target.value })
+          }
+        >
+          <option value="STAFF">STAFF</option>
+          <option value="ADMIN">ADMIN</option>
+          <option value="VIEWER">VIEWER</option>
+        </select>
+
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          onClick={create}
+          className="bg-slate-900 text-white px-5 py-2 rounded"
+        >
+          Create User
+        </button>
+      </div>
+    </div>
+  );
+}
