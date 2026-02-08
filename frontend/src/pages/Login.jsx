@@ -11,27 +11,18 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
 
   const submit = async () => {
-    try {
-      setIsLoading(true);
-      const res = await api.post("/auth/login", { username, password });
-      const expiresAt = Date.now() + 15 * 60 * 1000;
+      try {
+        setIsLoading(true);
+        const res = await api.post("/auth/login", { username, password });
 
-      localStorage.setItem(
-        "auth",
-        JSON.stringify({
-          token: res.data.token,
-          role: res.data.role,
-          expiresAt,
-        })
-      );
+        login(res.data.token, res.data.role);
 
-      login(res.data.token, res.data.role);
-    } catch (error) {
-      console.error("Login failed", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      } catch (error) {
+        console.error("Login failed", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
   return (
     <div className="min-h-screen w-full bg-[#1a202c] flex flex-col items-center justify-center relative overflow-hidden">
