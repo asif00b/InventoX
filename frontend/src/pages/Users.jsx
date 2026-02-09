@@ -7,6 +7,7 @@ export default function Users() {
   const [filterRole, setFilterRole] = useState("ALL");
   const [filterDept, setFilterDept] = useState("ALL");
   const [confirmId, setConfirmId] = useState(null);
+  const [editUser, setEditUser] = useState(null);
 
   const load = async () => {
     const res = await api.get("/users");
@@ -26,8 +27,6 @@ export default function Users() {
   return (
     <div className="space-y-6 p-4">
       <h2 className="text-xl font-semibold">Create User</h2>
-
-      {/* User Creation Form */}
       <UserForm onCreated={load} />
 
       <h2 className="text-xl font-semibold">Users List</h2>
@@ -63,7 +62,7 @@ export default function Users() {
 
       {/* Table */}
       <div className="bg-white shadow rounded-xl overflow-x-auto">
-        <table className="w-full min-w-[700px] border-collapse">
+        <table className="w-full min-w-[700px]">
           <thead className="bg-slate-200 text-left">
             <tr>
               <th className="p-3">User</th>
@@ -82,8 +81,7 @@ export default function Users() {
                 <td className="p-3 flex items-center gap-3">
                   <img
                     src={u.photo || "https://i.pravatar.cc/40"}
-                    alt="avatar"
-                    className="w-9 h-9 rounded-full object-cover"
+                    className="w-9 h-9 rounded-full"
                   />
                   <div>
                     <div className="font-medium">
@@ -98,27 +96,21 @@ export default function Users() {
                 <td>{u.role}</td>
                 <td>{u.designation}</td>
                 <td>{u.department}</td>
-
                 <td>
                   {u.createdAt &&
                     new Date(u.createdAt).toLocaleDateString()}
                 </td>
-
                 <td>{u.isActive ? "Active" : "Disabled"}</td>
 
-                <td className="text-right pr-3 space-x-2 whitespace-nowrap">
-                  {!u.isActive && (
-                    <button
-                      onClick={() =>
-                        api.patch(`/users/${u._id}/enable`).then(load)
-                      }
-                      className="text-green-600"
-                    >
-                      Enable
-                    </button>
-                  )}
+                <td className="text-right pr-3 space-x-2">
+                  <button
+                    onClick={() => setEditUser(u)}
+                    className="text-blue-600"
+                  >
+                    Edit
+                  </button>
 
-                  {u.isActive && (
+                  {u.isActive ? (
                     <button
                       onClick={() =>
                         api.patch(`/users/${u._id}/disable`).then(load)
@@ -126,6 +118,15 @@ export default function Users() {
                       className="text-yellow-600"
                     >
                       Disable
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() =>
+                        api.patch(`/users/${u._id}/enable`).then(load)
+                      }
+                      className="text-green-600"
+                    >
+                      Enable
                     </button>
                   )}
 
@@ -142,7 +143,7 @@ export default function Users() {
             {filteredUsers.length === 0 && (
               <tr>
                 <td colSpan={7} className="p-6 text-center text-gray-500">
-                  No users found.
+                  No users found
                 </td>
               </tr>
             )}
@@ -150,28 +151,41 @@ export default function Users() {
         </table>
       </div>
 
-      {/* Confirm Delete */}
+      {/* Edit Modal */}
+      {editUser && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white p-6 rounded-xl w-full max-w-4xl shadow">
+            <h3 className="text-lg font-semibold mb-4">Edit User</h3>
+            <UserForm
+              initialData={editUser}
+              onCreated={load}
+              onClose={() => setEditUser(null)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirm */}
       {confirmId && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white p-6 rounded-xl w-full max-w-sm space-y-4 shadow">
+          <div className="bg-white p-6 rounded-xl w-full max-w-sm space-y-4">
             <h3 className="font-semibold text-lg">Confirm Delete</h3>
             <p>This user will be permanently deleted.</p>
 
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setConfirmId(null)}
-                className="px-4 py-2 border rounded"
+                className="border px-4 py-2 rounded"
               >
                 Cancel
               </button>
-
               <button
                 onClick={async () => {
                   await api.delete(`/users/${confirmId}`);
                   setConfirmId(null);
                   load();
                 }}
-                className="px-4 py-2 bg-red-600 text-white rounded"
+                className="bg-red-600 text-white px-4 py-2 rounded"
               >
                 Delete
               </button>

@@ -2,8 +2,12 @@
 import { useState, useRef } from "react";
 import api from "../api/axios";
 
-export default function UserForm({ onCreated }) {
-  const [form, setForm] = useState({
+export default function UserForm({
+  onCreated,
+  initialData = null,
+  onClose,
+}) {
+  const emptyForm = {
     username: "",
     password: "",
     role: "STAFF",
@@ -13,19 +17,21 @@ export default function UserForm({ onCreated }) {
     department: "",
     phone: "",
     photo: "",
-  });
+  };
+
+  const [form, setForm] = useState(
+    initialData
+      ? { ...initialData, password: "" }
+      : emptyForm
+  );
 
   const [showPass, setShowPass] = useState(false);
   const timerRef = useRef(null);
 
   const togglePassword = () => {
-    setShowPass((prev) => !prev);
-
+    setShowPass((p) => !p);
     if (timerRef.current) clearTimeout(timerRef.current);
-
-    timerRef.current = setTimeout(() => {
-      setShowPass(false);
-    }, 10000);
+    timerRef.current = setTimeout(() => setShowPass(false), 10000);
   };
 
   const handlePhoto = (file) => {
@@ -41,35 +47,39 @@ export default function UserForm({ onCreated }) {
     reader.readAsDataURL(file);
   };
 
-  const create = async () => {
-    if (!form.username || !form.password) {
-      alert("Fill required fields");
+  const submit = async () => {
+    if (!form.username) {
+      alert("Username required");
       return;
     }
 
-    await api.post("/users", form);
+    if (!initialData && !form.password) {
+      alert("Password required");
+      return;
+    }
 
-    setForm({
-      username: "",
-      password: "",
-      role: "STAFF",
-      name: "",
-      employeeId: "",
-      designation: "",
-      department: "",
-      phone: "",
-      photo: "",
-    });
+    try {
+      if (initialData?._id) {
+        await api.patch(`/users/${initialData._id}`, form);
+      } else {
+        await api.post("/users", form);
+        setForm(emptyForm);
+      }
 
-    onCreated();
+      onCreated();
+      onClose?.();
+    } catch (error) {
+      alert("Error saving user: " + (error.response?.data?.message || error.message));
+    }
   };
 
   return (
     <div className="bg-white shadow rounded-xl p-4 space-y-4">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
 
-        <input required
-          autoComplete="username"
+        <input
+          required
+          disabled={!!initialData}
           className="border p-2 rounded"
           placeholder="Username"
           value={form.username}
@@ -78,37 +88,53 @@ export default function UserForm({ onCreated }) {
           }
         />
 
-        <div className="relative">
-          <input required
-            autoComplete="new-password"
-            type={showPass ? "text" : "password"}
-            className="border p-2 rounded w-full pr-10"
-            placeholder="Password"
-            value={form.password}
-            onChange={(e) =>
-              setForm({ ...form, password: e.target.value })
-            }
-          />
+        {!initialData && (
+          <div className="relative">
+            <input
+              required
+              type={showPass ? "text" : "password"}
+              className="border p-2 rounded w-full pr-10"
+              placeholder="Password"
+              value={form.password}
+              onChange={(e) =>
+                setForm({ ...form, password: e.target.value })
+              }
+            />
 
-          <button
-            type="button"
-            onClick={togglePassword}
-            className="absolute right-2 top-1/2 -translate-y-1/2"
+            <button
+              type="button"
+              onClick={togglePassword}
+              className="absolute right-2 top-1/2 -translate-y-1/2"
             >
-            {showPass ? (
+              {showPass ? (
                 // Eye Closed
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C7 20 2.73 16.11 1 12c.73-1.68 1.79-3.18 3.06-4.44M9.9 4.24A10.94 10.94 0 0 1 12 4c5 0 9.27 3.89 11 8a11.05 11.05 0 0 1-4.24 5.36M1 1l22 22"/>
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C7 20 2.73 16.11 1 12c.73-1.68 1.79-3.18 3.06-4.44M9.9 4.24A10.94 10.94 0 0 1 12 4c5 0 9.27 3.89 11 8a11.05 11.05 0 0 1-4.24 5.36M1 1l22 22" />
                 </svg>
-            ) : (
+              ) : (
                 // Eye Open
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
-                <circle cx="12" cy="12" r="3"/>
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" />
+                  <circle cx="12" cy="12" r="3" />
                 </svg>
-            )}
-          </button>
-        </div>
+              )}
+            </button>
+          </div>
+        )}
 
         <input
           className="border p-2 rounded"
@@ -137,7 +163,8 @@ export default function UserForm({ onCreated }) {
           }
         />
 
-        <select required
+        <select
+          required
           className="border p-2 rounded"
           value={form.department}
           onChange={(e) =>
@@ -150,7 +177,8 @@ export default function UserForm({ onCreated }) {
           <option value="HR">HR</option>
         </select>
 
-        <input required
+        <input
+          required
           className="border p-2 rounded"
           placeholder="Phone"
           value={form.phone}
@@ -177,15 +205,23 @@ export default function UserForm({ onCreated }) {
           <option value="ADMIN">ADMIN</option>
           <option value="VIEWER">VIEWER</option>
         </select>
-
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="border px-4 py-2 rounded"
+          >
+            Cancel
+          </button>
+        )}
+
         <button
-          onClick={create}
+          onClick={submit}
           className="bg-slate-900 text-white px-5 py-2 rounded"
         >
-          Create User
+          {initialData ? "Update User" : "Create User"}
         </button>
       </div>
     </div>

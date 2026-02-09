@@ -4,7 +4,8 @@ import {
   getUsers,
   disableUser,
   enableUser,
-  deleteUser
+  deleteUser,
+  updateUser
 } from "../controllers/userController.js";
 
 import { protect, allowRoles } from "../middleware/auth.js";
@@ -15,6 +16,7 @@ router.use(protect, allowRoles("SUPER_ADMIN"));
 
 router.post("/", createUser);
 router.get("/", getUsers);
+router.patch("/:id", updateUser);       // ← REQUIRED
 router.patch("/:id/disable", disableUser);
 router.patch("/:id/enable", enableUser);
 router.delete("/:id", deleteUser);
