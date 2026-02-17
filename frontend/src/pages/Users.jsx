@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api/axios";
 import UserForm from "./UserForm";
+import { MoreVertical } from "lucide-react";
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -9,9 +10,12 @@ export default function Users() {
   const [confirmId, setConfirmId] = useState(null);
   const [editUser, setEditUser] = useState(null);
 
-  // ✅ Sorting state
+  // Sorting
   const [sortField, setSortField] = useState(null);
   const [sortOrder, setSortOrder] = useState("asc");
+
+  // Dropdown
+  const [openMenu, setOpenMenu] = useState(null);
 
   const load = async () => {
     const res = await api.get("/users");
@@ -28,7 +32,6 @@ export default function Users() {
       (filterDept === "ALL" || u.department === filterDept)
   );
 
-  // ✅ Sorting logic
   const sortedUsers = [...filteredUsers].sort((a, b) => {
     if (!sortField) return 0;
 
@@ -43,7 +46,6 @@ export default function Users() {
     return 0;
   });
 
-  // ✅ Sort handler
   const handleSort = (field) => {
     if (sortField === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -112,12 +114,12 @@ export default function Users() {
                   (sortOrder === "asc" ? "▲" : "▼")}
               </th>
 
-              <th>Designation</th>
-              <th>Department</th>
+              <th className="hidden md:table-cell">Designation</th>
+              <th className="hidden md:table-cell">Department</th>
 
               <th
                 onClick={() => handleSort("createdAt")}
-                className="cursor-pointer"
+                className="hidden lg:table-cell cursor-pointer"
               >
                 Created{" "}
                 {sortField === "createdAt" &&
@@ -126,7 +128,7 @@ export default function Users() {
 
               <th
                 onClick={() => handleSort("updatedAt")}
-                className="cursor-pointer"
+                className="hidden lg:table-cell cursor-pointer"
               >
                 Modified{" "}
                 {sortField === "updatedAt" &&
@@ -157,62 +159,103 @@ export default function Users() {
                 </td>
 
                 <td>{u.role}</td>
-                <td>{u.designation}</td>
-                <td>{u.department}</td>
 
-                <td>
+                <td className="hidden md:table-cell">
+                  {u.designation}
+                </td>
+
+                <td className="hidden md:table-cell">
+                  {u.department}
+                </td>
+
+                <td className="hidden lg:table-cell">
                   {u.createdAt &&
                     new Date(u.createdAt).toLocaleDateString()}
                 </td>
 
-                <td>
+                <td className="hidden lg:table-cell">
                   {u.updatedAt &&
                     new Date(u.updatedAt).toLocaleDateString()}
                 </td>
 
                 <td>{u.isActive ? "Active" : "Disabled"}</td>
 
-                <td className="text-right pr-3 space-x-2">
+                {/* 3-dot menu */}
+                <td className="text-right pr-3 relative">
                   <button
-                    onClick={() => setEditUser(u)}
-                    className="text-blue-600"
+                    onClick={() =>
+                      setOpenMenu(
+                        openMenu === u._id ? null : u._id
+                      )
+                    }
+                    className="p-2 hover:bg-slate-100 rounded"
                   >
-                    Edit
+                    <MoreVertical size={18} />
                   </button>
 
-                  {u.isActive ? (
-                    <button
-                      onClick={() =>
-                        api.patch(`/users/${u._id}/disable`).then(load)
-                      }
-                      className="text-yellow-600"
-                    >
-                      Disable
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() =>
-                        api.patch(`/users/${u._id}/enable`).then(load)
-                      }
-                      className="text-green-600"
-                    >
-                      Enable
-                    </button>
+                  {openMenu === u._id && (
+                    <div className="absolute right-3 mt-2 w-36 bg-white shadow-lg rounded-lg border z-50">
+                      <button
+                        onClick={() => {
+                          setEditUser(u);
+                          setOpenMenu(null);
+                        }}
+                        className="block w-full text-left px-4 py-2 hover:bg-slate-100"
+                      >
+                        Edit
+                      </button>
+
+                      {u.isActive ? (
+                        <button
+                          onClick={() => {
+                            api
+                              .patch(
+                                `/users/${u._id}/disable`
+                              )
+                              .then(load);
+                            setOpenMenu(null);
+                          }}
+                          className="block w-full text-left px-4 py-2 hover:bg-slate-100 text-yellow-600"
+                        >
+                          Disable
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            api
+                              .patch(
+                                `/users/${u._id}/enable`
+                              )
+                              .then(load);
+                            setOpenMenu(null);
+                          }}
+                          className="block w-full text-left px-4 py-2 hover:bg-slate-100 text-green-600"
+                        >
+                          Enable
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => {
+                          setConfirmId(u._id);
+                          setOpenMenu(null);
+                        }}
+                        className="block w-full text-left px-4 py-2 hover:bg-slate-100 text-red-600"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   )}
-
-                  <button
-                    onClick={() => setConfirmId(u._id)}
-                    className="text-red-600"
-                  >
-                    Delete
-                  </button>
                 </td>
               </tr>
             ))}
 
             {sortedUsers.length === 0 && (
               <tr>
-                <td colSpan={8} className="p-6 text-center text-gray-500">
+                <td
+                  colSpan={8}
+                  className="p-6 text-center text-gray-500"
+                >
                   No users found
                 </td>
               </tr>
@@ -225,7 +268,9 @@ export default function Users() {
       {editUser && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
           <div className="bg-white p-6 rounded-xl w-full max-w-4xl shadow">
-            <h3 className="text-lg font-semibold mb-4">Edit User</h3>
+            <h3 className="text-lg font-semibold mb-4">
+              Edit User
+            </h3>
             <UserForm
               initialData={editUser}
               onCreated={load}
@@ -239,7 +284,9 @@ export default function Users() {
       {confirmId && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
           <div className="bg-white p-6 rounded-xl w-full max-w-sm space-y-4">
-            <h3 className="font-semibold text-lg">Confirm Delete</h3>
+            <h3 className="font-semibold text-lg">
+              Confirm Delete
+            </h3>
             <p>This user will be permanently deleted.</p>
 
             <div className="flex justify-end gap-2">
@@ -251,7 +298,9 @@ export default function Users() {
               </button>
               <button
                 onClick={async () => {
-                  await api.delete(`/users/${confirmId}`);
+                  await api.delete(
+                    `/users/${confirmId}`
+                  );
                   setConfirmId(null);
                   load();
                 }}
