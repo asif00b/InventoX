@@ -1,8 +1,9 @@
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import { useState } from "react";
+import { Outlet } from "react-router-dom";
 
-export default function Layout({ children }) {
+export default function Layout() {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -13,7 +14,7 @@ export default function Layout({ children }) {
         <Topbar onToggleSidebar={() => setCollapsed(!collapsed)} />
 
         <main className="flex-1 bg-slate-100 p-6 overflow-auto">
-          {children}
+          <Outlet />
         </main>
       </div>
     </div>

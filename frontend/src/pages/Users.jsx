@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import api from "../api/axios";
 import UserForm from "./UserForm";
 import { MoreVertical } from "lucide-react";
+
+
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -10,12 +12,12 @@ export default function Users() {
   const [confirmId, setConfirmId] = useState(null);
   const [editUser, setEditUser] = useState(null);
 
-  // Sorting
   const [sortField, setSortField] = useState(null);
   const [sortOrder, setSortOrder] = useState("asc");
 
-  // Dropdown
   const [openMenu, setOpenMenu] = useState(null);
+  const dropdownRef = useRef(null);
+
 
   const load = async () => {
     const res = await api.get("/users");
@@ -25,6 +27,24 @@ export default function Users() {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+  const handleClickOutside = (e) => {
+    if (
+      dropdownRef.current &&
+      !dropdownRef.current.contains(e.target)
+    ) {
+      setOpenMenu(null);
+    }
+  };
+
+  document.addEventListener("mousedown", handleClickOutside);
+
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, []);
+
 
   const filteredUsers = users.filter(
     (u) =>
@@ -56,7 +76,7 @@ export default function Users() {
   };
 
   return (
-    <div className="space-y-6 p-4">
+    <div className="space-y-6 p-4 relative">
       <h2 className="text-xl font-semibold">Create User</h2>
       <UserForm onCreated={load} />
 
@@ -92,8 +112,8 @@ export default function Users() {
       </div>
 
       {/* Table */}
-      <div className="bg-white shadow rounded-xl overflow-x-auto overflow-y-visible">
-        <table className="w-full min-w-[900px]">
+      <div className="bg-white shadow rounded-xl overflow-x-auto">
+        <table className="w-full">
           <thead className="bg-slate-200 text-left">
             <tr>
               <th
@@ -180,13 +200,10 @@ export default function Users() {
 
                 <td>{u.isActive ? "Active" : "Disabled"}</td>
 
-                {/* 3-dot menu */}
                 <td className="text-right pr-3 relative">
                   <button
                     onClick={() =>
-                      setOpenMenu(
-                        openMenu === u._id ? null : u._id
-                      )
+                      setOpenMenu(openMenu === u._id ? null : u._id)
                     }
                     className="p-2 hover:bg-slate-100 rounded"
                   >
@@ -194,7 +211,10 @@ export default function Users() {
                   </button>
 
                   {openMenu === u._id && (
-                    <div className="absolute right-3 mt-2 w-36 bg-white shadow-lg rounded-lg border z-50">
+                    <div
+                      ref={dropdownRef}
+                      className="absolute right-0 mt-2 w-36 bg-white shadow-lg rounded-lg border z-50"
+                    >
                       <button
                         onClick={() => {
                           setEditUser(u);
@@ -208,11 +228,7 @@ export default function Users() {
                       {u.isActive ? (
                         <button
                           onClick={() => {
-                            api
-                              .patch(
-                                `/users/${u._id}/disable`
-                              )
-                              .then(load);
+                            api.patch(`/users/${u._id}/disable`).then(load);
                             setOpenMenu(null);
                           }}
                           className="block w-full text-left px-4 py-2 hover:bg-slate-100 text-yellow-600"
@@ -222,11 +238,7 @@ export default function Users() {
                       ) : (
                         <button
                           onClick={() => {
-                            api
-                              .patch(
-                                `/users/${u._id}/enable`
-                              )
-                              .then(load);
+                            api.patch(`/users/${u._id}/enable`).then(load);
                             setOpenMenu(null);
                           }}
                           className="block w-full text-left px-4 py-2 hover:bg-slate-100 text-green-600"
@@ -263,6 +275,72 @@ export default function Users() {
           </tbody>
         </table>
       </div>
+
+      {/* Floating Dropdown */}
+      {openMenu && (
+        <div
+          ref={dropdownRef}
+          className="absolute z-50 w-36 bg-white shadow-lg rounded-lg border"
+          style={{
+            top: openMenu.y,
+            left: openMenu.x,
+          }}
+        >
+          <button
+            onClick={() => {
+              const user = users.find(
+                (u) => u._id === openMenu.id
+              );
+              setEditUser(user);
+              setOpenMenu(null);
+            }}
+            className="block w-full text-left px-4 py-2 hover:bg-slate-100"
+          >
+            Edit
+          </button>
+
+          {users.find((u) => u._id === openMenu.id)
+            ?.isActive ? (
+            <button
+              onClick={() => {
+                api
+                  .patch(
+                    `/users/${openMenu.id}/disable`
+                  )
+                  .then(load);
+                setOpenMenu(null);
+              }}
+              className="block w-full text-left px-4 py-2 hover:bg-slate-100 text-yellow-600"
+            >
+              Disable
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                api
+                  .patch(
+                    `/users/${openMenu.id}/enable`
+                  )
+                  .then(load);
+                setOpenMenu(null);
+              }}
+              className="block w-full text-left px-4 py-2 hover:bg-slate-100 text-green-600"
+            >
+              Enable
+            </button>
+          )}
+
+          <button
+            onClick={() => {
+              setConfirmId(openMenu.id);
+              setOpenMenu(null);
+            }}
+            className="block w-full text-left px-4 py-2 hover:bg-slate-100 text-red-600"
+          >
+            Delete
+          </button>
+        </div>
+      )}
 
       {/* Edit Modal */}
       {editUser && (

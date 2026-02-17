@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
 import Login from "./pages/Login";
 import Layout from "./components/Layout";
@@ -13,33 +13,47 @@ import Users from "./pages/Users";
 import Settings from "./pages/Settings";
 
 export default function App() {
-  const { token, role } = useAuth();
+  const { token, role, loading } = useAuth();
 
-  if (!token) return <Login />;
+  if (loading) return null; // ✅ IMPORTANT
 
   return (
-    <BrowserRouter>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Dashboard role={role} />} />
+    <Routes>
+      {/* Login */}
+      <Route
+        path="/login"
+        element={!token ? <Login /> : <Navigate to="/" replace />}
+      />
 
-          <Route path="/products" element={<Products />} />
-          <Route path="/stock" element={<Stock />} />
-          <Route path="/suppliers" element={<Suppliers />} />
-          <Route path="/reports" element={<Reports />} />
+      {/* Protected Layout */}
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Dashboard role={role} />} />
+        <Route path="products" element={<Products />} />
+        <Route path="stock" element={<Stock />} />
+        <Route path="suppliers" element={<Suppliers />} />
+        <Route path="reports" element={<Reports />} />
 
-          <Route
-            path="/users"
-            element={
-              <ProtectedRoute roles={["SUPER_ADMIN"]}>
-                <Users />
-              </ProtectedRoute>
-            }
-          />
+        <Route
+          path="users"
+          element={
+            <ProtectedRoute roles={["SUPER_ADMIN"]}>
+              <Users />
+            </ProtectedRoute>
+          }
+        />
 
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
-      </Layout>
-    </BrowserRouter>
+        <Route path="settings" element={<Settings />} />
+      </Route>
+
+      {/* Proper Catch-All */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
