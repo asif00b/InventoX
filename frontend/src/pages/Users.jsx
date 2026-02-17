@@ -9,6 +9,10 @@ export default function Users() {
   const [confirmId, setConfirmId] = useState(null);
   const [editUser, setEditUser] = useState(null);
 
+  // ✅ Sorting state
+  const [sortField, setSortField] = useState(null);
+  const [sortOrder, setSortOrder] = useState("asc");
+
   const load = async () => {
     const res = await api.get("/users");
     setUsers(res.data);
@@ -23,6 +27,31 @@ export default function Users() {
       (filterRole === "ALL" || u.role === filterRole) &&
       (filterDept === "ALL" || u.department === filterDept)
   );
+
+  // ✅ Sorting logic
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
+    if (!sortField) return 0;
+
+    const valA = a[sortField];
+    const valB = b[sortField];
+
+    if (!valA) return 1;
+    if (!valB) return -1;
+
+    if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+    if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  // ✅ Sort handler
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
+    }
+  };
 
   return (
     <div className="space-y-6 p-4">
@@ -62,21 +91,55 @@ export default function Users() {
 
       {/* Table */}
       <div className="bg-white shadow rounded-xl overflow-x-auto">
-        <table className="w-full min-w-[700px]">
+        <table className="w-full min-w-[900px]">
           <thead className="bg-slate-200 text-left">
             <tr>
-              <th className="p-3">User</th>
-              <th>Role</th>
+              <th
+                onClick={() => handleSort("username")}
+                className="p-3 cursor-pointer"
+              >
+                User{" "}
+                {sortField === "username" &&
+                  (sortOrder === "asc" ? "▲" : "▼")}
+              </th>
+
+              <th
+                onClick={() => handleSort("role")}
+                className="cursor-pointer"
+              >
+                Role{" "}
+                {sortField === "role" &&
+                  (sortOrder === "asc" ? "▲" : "▼")}
+              </th>
+
               <th>Designation</th>
               <th>Department</th>
-              <th>Created</th>
+
+              <th
+                onClick={() => handleSort("createdAt")}
+                className="cursor-pointer"
+              >
+                Created{" "}
+                {sortField === "createdAt" &&
+                  (sortOrder === "asc" ? "▲" : "▼")}
+              </th>
+
+              <th
+                onClick={() => handleSort("updatedAt")}
+                className="cursor-pointer"
+              >
+                Modified{" "}
+                {sortField === "updatedAt" &&
+                  (sortOrder === "asc" ? "▲" : "▼")}
+              </th>
+
               <th>Status</th>
               <th className="text-right pr-3">Actions</th>
             </tr>
           </thead>
 
           <tbody>
-            {filteredUsers.map((u) => (
+            {sortedUsers.map((u) => (
               <tr key={u._id} className="border-t hover:bg-slate-50">
                 <td className="p-3 flex items-center gap-3">
                   <img
@@ -96,10 +159,17 @@ export default function Users() {
                 <td>{u.role}</td>
                 <td>{u.designation}</td>
                 <td>{u.department}</td>
+
                 <td>
                   {u.createdAt &&
                     new Date(u.createdAt).toLocaleDateString()}
                 </td>
+
+                <td>
+                  {u.updatedAt &&
+                    new Date(u.updatedAt).toLocaleDateString()}
+                </td>
+
                 <td>{u.isActive ? "Active" : "Disabled"}</td>
 
                 <td className="text-right pr-3 space-x-2">
@@ -140,9 +210,9 @@ export default function Users() {
               </tr>
             ))}
 
-            {filteredUsers.length === 0 && (
+            {sortedUsers.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-6 text-center text-gray-500">
+                <td colSpan={8} className="p-6 text-center text-gray-500">
                   No users found
                 </td>
               </tr>
