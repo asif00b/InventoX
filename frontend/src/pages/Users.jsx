@@ -92,7 +92,7 @@ export default function Users() {
       </div>
 
       {/* Table */}
-      <div className="bg-white shadow rounded-xl overflow-x-auto">
+      <div className="bg-white shadow rounded-xl overflow-x-auto overflow-y-visible">
         <table className="w-full min-w-[900px]">
           <thead className="bg-slate-200 text-left">
             <tr>
