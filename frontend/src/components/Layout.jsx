@@ -4,17 +4,28 @@ import { useState } from "react";
 import { Outlet } from "react-router-dom";
 
 export default function Layout() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    const saved = localStorage.getItem("sidebarCollapsed");
+    return saved === "true";
+  });
+
+  const toggleSidebar = () => {
+    setCollapsed(prev => {
+      const newValue = !prev;
+      localStorage.setItem("sidebarCollapsed", newValue);
+      return newValue;
+    });
+  };
 
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar
         collapsed={collapsed}
-        setCollapsed={setCollapsed}
+        setCollapsed={toggleSidebar}
       />
 
       <div className="flex flex-col flex-1">
-        <Topbar onToggleSidebar={() => setCollapsed(prev => !prev)} />
+        <Topbar onToggleSidebar={toggleSidebar} />
 
         <main className="flex-1 bg-slate-100 p-6 overflow-auto">
           <Outlet />
