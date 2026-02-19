@@ -11,6 +11,7 @@ import {
   Settings,
   LogOut,
   User,
+  Menu,
 } from "lucide-react";
 
 const iconMap = {
@@ -49,17 +50,21 @@ const menuConfig = {
   ],
 };
 
-export default function Sidebar({ collapsed }) {
+export default function Sidebar({ collapsed, setCollapsed }) {
   const { role, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const menus = menuConfig[role] || [];
-
   const [profileOpen, setProfileOpen] = useState(false);
 
   const handleLogout = () => {
-    logout(); // clear auth
-    navigate("/login", { replace: true }); // 🔴 FIX URL
+    logout();
+    navigate("/login", { replace: true });
+  };
+
+  const toggleSidebar = () => {
+    setCollapsed(!collapsed);
+    if (!collapsed) setProfileOpen(false);
   };
 
   return (
@@ -68,12 +73,25 @@ export default function Sidebar({ collapsed }) {
         collapsed ? "w-16" : "w-64"
       }`}
     >
-      {/* Top */}
+      {/* Top + Menu */}
       <div>
-        <div className="p-4 text-lg font-semibold tracking-wide">
-          {!collapsed && "InventoX"}
+        {/* Header */}
+        <div className="flex items-center gap-3 p-4">
+          <button
+            onClick={toggleSidebar}
+            className="p-2 rounded hover:bg-slate-800 transition"
+          >
+            <Menu size={20} />
+          </button>
+
+          {!collapsed && (
+            <span className="text-lg font-semibold tracking-wide">
+              InventoX
+            </span>
+          )}
         </div>
 
+        {/* Menu */}
         <nav className="space-y-1 px-2">
           {menus.map((m) => {
             const Icon = iconMap[m.name] || LayoutDashboard;
@@ -85,7 +103,8 @@ export default function Sidebar({ collapsed }) {
                 to={m.path}
                 className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-slate-800 ${
                   active ? "bg-slate-800" : ""
-                }`}
+                } ${collapsed ? "justify-center" : ""}`}
+                title={collapsed ? m.name : ""}
               >
                 <Icon size={18} />
                 {!collapsed && <span>{m.name}</span>}
@@ -95,26 +114,33 @@ export default function Sidebar({ collapsed }) {
         </nav>
       </div>
 
-      {/* Bottom */}
+      {/* Bottom Section */}
       <div className="p-2 border-t border-slate-800">
         <Link
           to="/settings"
-          className="flex items-center gap-3 px-3 py-2 hover:bg-slate-800 rounded"
+          className={`flex items-center gap-3 px-3 py-2 hover:bg-slate-800 rounded ${
+            collapsed ? "justify-center" : ""
+          }`}
+          title={collapsed ? "Settings" : ""}
         >
           <Settings size={18} />
           {!collapsed && <span>Settings</span>}
         </Link>
 
-        {/* Profile */}
         <div className="relative mt-1">
           <button
             onClick={() => setProfileOpen((p) => !p)}
-            className="w-full flex items-center gap-3 px-3 py-2 hover:bg-slate-800 rounded"
+            className={`w-full flex items-center gap-3 px-3 py-2 hover:bg-slate-800 rounded ${
+              collapsed ? "justify-center" : ""
+            }`}
+            title={collapsed ? "Profile" : ""}
           >
             <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center">
               <User size={16} />
             </div>
-            {!collapsed && <span className="flex-1 text-left">Profile</span>}
+            {!collapsed && (
+              <span className="flex-1 text-left">Profile</span>
+            )}
           </button>
 
           {profileOpen && !collapsed && (
@@ -127,6 +153,16 @@ export default function Sidebar({ collapsed }) {
                 Logout
               </button>
             </div>
+          )}
+
+          {collapsed && (
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center px-3 py-2 hover:bg-slate-800 rounded mt-1"
+              title="Logout"
+            >
+              <LogOut size={18} />
+            </button>
           )}
         </div>
       </div>

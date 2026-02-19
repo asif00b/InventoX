@@ -8,10 +8,13 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar collapsed={collapsed} />
+      <Sidebar
+        collapsed={collapsed}
+        setCollapsed={setCollapsed}
+      />
 
       <div className="flex flex-col flex-1">
-        <Topbar onToggleSidebar={() => setCollapsed(!collapsed)} />
+        <Topbar onToggleSidebar={() => setCollapsed(prev => !prev)} />
 
         <main className="flex-1 bg-slate-100 p-6 overflow-auto">
           <Outlet />
