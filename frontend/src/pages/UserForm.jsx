@@ -20,12 +20,14 @@ export default function UserForm({
   };
 
   const [form, setForm] = useState(
-    initialData
-      ? { ...initialData, password: "" }
-      : emptyForm
+    initialData ? { ...initialData, password: "" } : emptyForm
   );
 
   const [showPass, setShowPass] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+  const [loading, setLoading] = useState(false);
+
   const timerRef = useRef(null);
 
   const togglePassword = () => {
@@ -36,8 +38,9 @@ export default function UserForm({
 
   const handlePhoto = (file) => {
     if (!file) return;
+
     if (!["image/jpeg", "image/png"].includes(file.type)) {
-      alert("Only JPG and PNG allowed");
+      setErrorMsg("Only JPG and PNG images allowed");
       return;
     }
 
@@ -48,37 +51,69 @@ export default function UserForm({
   };
 
   const submit = async () => {
-    if (!form.username) {
-      alert("Username required");
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    if (!form.username.trim()) {
+      setErrorMsg("Username is required");
       return;
     }
 
-    if (!initialData && !form.password) {
-      alert("Password required");
+    if (!initialData && !form.password.trim()) {
+      setErrorMsg("Password is required");
       return;
     }
 
     try {
+      setLoading(true);
+
       if (initialData?._id) {
         await api.patch(`/users/${initialData._id}`, form);
+        setSuccessMsg("User updated successfully");
       } else {
         await api.post("/users", form);
+        setSuccessMsg("User created successfully");
         setForm(emptyForm);
       }
 
-      onCreated();
-      onClose?.();
+      onCreated?.();
+
+      setTimeout(() => {
+        setSuccessMsg("");
+        onClose?.();
+      }, 1200);
+
     } catch (error) {
-      alert("Error saving user: " + (error.response?.data?.message || error.message));
+      setErrorMsg(
+        error.response?.data?.msg ||
+        error.response?.data?.message ||
+        "Failed to save user"
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="bg-white shadow rounded-xl p-4 space-y-4">
+    <div className="bg-white shadow rounded-xl p-5 space-y-4">
+
+      {/* Error Message */}
+      {errorMsg && (
+        <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-2 rounded">
+          {errorMsg}
+        </div>
+      )}
+
+      {/* Success Message */}
+      {successMsg && (
+        <div className="bg-green-100 border border-green-300 text-green-700 px-4 py-2 rounded">
+          {successMsg}
+        </div>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
 
         <input
-          required
           disabled={!!initialData}
           className="border p-2 rounded"
           placeholder="Username"
@@ -91,7 +126,6 @@ export default function UserForm({
         {!initialData && (
           <div className="relative">
             <input
-              required
               type={showPass ? "text" : "password"}
               className="border p-2 rounded w-full pr-10"
               placeholder="Password"
@@ -104,7 +138,7 @@ export default function UserForm({
             <button
               type="button"
               onClick={togglePassword}
-              className="absolute right-2 top-1/2 -translate-y-1/2"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-600 hover:text-black"
             >
               {showPass ? (
                 // Eye Closed
@@ -136,6 +170,7 @@ export default function UserForm({
           </div>
         )}
 
+
         <input
           className="border p-2 rounded"
           placeholder="Full Name"
@@ -164,7 +199,6 @@ export default function UserForm({
         />
 
         <select
-          required
           className="border p-2 rounded"
           value={form.department}
           onChange={(e) =>
@@ -178,7 +212,6 @@ export default function UserForm({
         </select>
 
         <input
-          required
           className="border p-2 rounded"
           placeholder="Phone"
           value={form.phone}
@@ -219,9 +252,18 @@ export default function UserForm({
 
         <button
           onClick={submit}
-          className="bg-slate-900 text-white px-5 py-2 rounded"
+          disabled={loading}
+          className={`px-5 py-2 rounded text-white ${
+            loading
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-slate-900"
+          }`}
         >
-          {initialData ? "Update User" : "Create User"}
+          {loading
+            ? "Saving..."
+            : initialData
+            ? "Update User"
+            : "Create User"}
         </button>
       </div>
     </div>
