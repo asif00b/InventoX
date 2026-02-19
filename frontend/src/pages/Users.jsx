@@ -1,14 +1,13 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import api from "../api/axios";
 import UserForm from "./UserForm";
 import { MoreVertical } from "lucide-react";
-
-
 
 export default function Users() {
   const [users, setUsers] = useState([]);
   const [filterRole, setFilterRole] = useState("ALL");
   const [filterDept, setFilterDept] = useState("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
   const [confirmId, setConfirmId] = useState(null);
   const [editUser, setEditUser] = useState(null);
 
@@ -18,10 +17,17 @@ export default function Users() {
   const [openMenu, setOpenMenu] = useState(null);
   const dropdownRef = useRef(null);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const load = async () => {
-    const res = await api.get("/users");
-    setUsers(res.data);
+    try {
+      const res = await api.get("/users");
+      setUsers(res.data);
+    } catch (error) {
+      console.error("Failed to load users:", error);
+      // Optionally: Add user-facing error message
+    }
   };
 
   useEffect(() => {
@@ -29,42 +35,82 @@ export default function Users() {
   }, []);
 
   useEffect(() => {
-  const handleClickOutside = (e) => {
-    if (
-      dropdownRef.current &&
-      !dropdownRef.current.contains(e.target)
-    ) {
-      setOpenMenu(null);
-    }
-  };
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setOpenMenu(null);
+      }
+    };
 
-  document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
 
-  return () => {
-    document.removeEventListener("mousedown", handleClickOutside);
-  };
-}, []);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
+  useEffect(() => {
+    const updateMenuPosition = () => {
+      if (openMenu?.button) {
+        const rect = openMenu.button.getBoundingClientRect();
+        const menuHeight = 120; // Approximate menu height
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const flip = spaceBelow < menuHeight;
+        setOpenMenu((prev) => ({
+          ...prev,
+          top: flip ? rect.top - menuHeight : rect.bottom,
+          left: rect.right - 150,
+          flipped: flip,
+        }));
+      }
+    };
 
-  const filteredUsers = users.filter(
-    (u) =>
-      (filterRole === "ALL" || u.role === filterRole) &&
-      (filterDept === "ALL" || u.department === filterDept)
-  );
+    window.addEventListener("resize", updateMenuPosition);
+    window.addEventListener("scroll", updateMenuPosition);
 
-  const sortedUsers = [...filteredUsers].sort((a, b) => {
-    if (!sortField) return 0;
+    return () => {
+      window.removeEventListener("resize", updateMenuPosition);
+      window.removeEventListener("scroll", updateMenuPosition);
+    };
+  }, [openMenu]);
 
-    const valA = a[sortField];
-    const valB = b[sortField];
+  const filteredUsers = useMemo(() => {
+    return users.filter(
+      (u) =>
+        (filterRole === "ALL" || u.role === filterRole) &&
+        (filterDept === "ALL" || u.department === filterDept) &&
+        ((u.name && u.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+         (u.username && u.username.toLowerCase().includes(searchQuery.toLowerCase())))
+    );
+  }, [users, filterRole, filterDept, searchQuery]);
 
-    if (!valA) return 1;
-    if (!valB) return -1;
+  const sortedUsers = useMemo(() => {
+    return [...filteredUsers].sort((a, b) => {
+      if (!sortField) return 0;
 
-    if (valA < valB) return sortOrder === "asc" ? -1 : 1;
-    if (valA > valB) return sortOrder === "asc" ? 1 : -1;
-    return 0;
-  });
+      let valA = a[sortField];
+      let valB = b[sortField];
+
+      if (sortField === "createdAt" || sortField === "updatedAt") {
+        valA = new Date(valA).getTime() || 0;
+        valB = new Date(valB).getTime() || 0;
+      }
+
+      if (valA === undefined || valA === null) return 1;
+      if (valB === undefined || valB === null) return -1;
+
+      if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+      if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [filteredUsers, sortField, sortOrder]);
+
+  const paginatedUsers = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    return sortedUsers.slice(start, end);
+  }, [sortedUsers, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(sortedUsers.length / pageSize);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -75,6 +121,15 @@ export default function Users() {
     }
   };
 
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (e) => {
+    setPageSize(Number(e.target.value));
+    setCurrentPage(1);
+  };
+
   return (
     <div className="space-y-6 p-4 relative">
       <h2 className="text-xl font-semibold">Create User</h2>
@@ -82,8 +137,15 @@ export default function Users() {
 
       <h2 className="text-xl font-semibold">Users List</h2>
 
-      {/* Filters */}
+      {/* Filters and Search */}
       <div className="flex flex-wrap gap-3 items-center">
+        <input
+          type="text"
+          placeholder="Search by name or username..."
+          className="border p-2 rounded flex-1 max-w-md"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
         <select
           className="border p-2 rounded"
           value={filterRole}
@@ -111,6 +173,22 @@ export default function Users() {
         </select>
       </div>
 
+      {/* Page Size Selector */}
+      <div className="flex items-center gap-2">
+        <label>Show:</label>
+        <select
+          className="border p-2 rounded"
+          value={pageSize}
+          onChange={handlePageSizeChange}
+        >
+          <option value={5}>5</option>
+          <option value={10}>10</option>
+          <option value={25}>25</option>
+          <option value={50}>50</option>
+        </select>
+        <span>per page</span>
+      </div>
+
       {/* Table */}
       <div className="bg-white shadow rounded-xl overflow-x-auto">
         <table className="w-full">
@@ -127,19 +205,18 @@ export default function Users() {
 
               <th
                 onClick={() => handleSort("role")}
-                className="cursor-pointer"
+                className="p-3 cursor-pointer"
               >
                 Role{" "}
-                {sortField === "role" &&
-                  (sortOrder === "asc" ? "▲" : "▼")}
+                {sortField === "role" && (sortOrder === "asc" ? "▲" : "▼")}
               </th>
 
-              <th className="hidden md:table-cell">Designation</th>
-              <th className="hidden md:table-cell">Department</th>
+              <th className="p-3 hidden md:table-cell">Designation</th>
+              <th className="p-3 hidden md:table-cell">Department</th>
 
               <th
                 onClick={() => handleSort("createdAt")}
-                className="hidden lg:table-cell cursor-pointer"
+                className="p-3 hidden lg:table-cell cursor-pointer"
               >
                 Created{" "}
                 {sortField === "createdAt" &&
@@ -148,25 +225,26 @@ export default function Users() {
 
               <th
                 onClick={() => handleSort("updatedAt")}
-                className="hidden lg:table-cell cursor-pointer"
+                className="p-3 hidden lg:table-cell cursor-pointer"
               >
                 Modified{" "}
                 {sortField === "updatedAt" &&
                   (sortOrder === "asc" ? "▲" : "▼")}
               </th>
 
-              <th>Status</th>
-              <th className="text-right pr-3">Actions</th>
+              <th className="p-3">Status</th>
+              <th className="p-3 text-right pr-3">Actions</th>
             </tr>
           </thead>
 
           <tbody>
-            {sortedUsers.map((u) => (
+            {paginatedUsers.map((u) => (
               <tr key={u._id} className="border-t hover:bg-slate-50">
                 <td className="p-3 flex items-center gap-3">
                   <img
                     src={u.photo || "https://i.pravatar.cc/40"}
                     className="w-9 h-9 rounded-full"
+                    alt={`${u.name || u.username}'s photo`}
                   />
                   <div>
                     <div className="font-medium">
@@ -178,42 +256,56 @@ export default function Users() {
                   </div>
                 </td>
 
-                <td>{u.role}</td>
+                <td className="p-3">{u.role}</td>
 
-                <td className="hidden md:table-cell">
+                <td className="p-3 hidden md:table-cell">
                   {u.designation}
                 </td>
 
-                <td className="hidden md:table-cell">
+                <td className="p-3 hidden md:table-cell">
                   {u.department}
                 </td>
 
-                <td className="hidden lg:table-cell">
+                <td className="p-3 hidden lg:table-cell">
                   {u.createdAt &&
                     new Date(u.createdAt).toLocaleDateString()}
                 </td>
 
-                <td className="hidden lg:table-cell">
+                <td className="p-3 hidden lg:table-cell">
                   {u.updatedAt &&
                     new Date(u.updatedAt).toLocaleDateString()}
                 </td>
 
-                <td>{u.isActive ? "Active" : "Disabled"}</td>
+                <td className="p-3">{u.isActive ? "Active" : "Disabled"}</td>
 
-                <td className="text-right pr-3 relative">
+                <td className="p-3 text-right pr-3 relative">
                   <button
-                    onClick={() =>
-                      setOpenMenu(openMenu === u._id ? null : u._id)
-                    }
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const menuHeight = 120; // Approximate menu height
+                      const spaceBelow = window.innerHeight - rect.bottom;
+                      const flip = spaceBelow < menuHeight;
+                      setOpenMenu({
+                        id: u._id,
+                        top: flip ? rect.top - menuHeight : rect.bottom,
+                        left: rect.right - 150,
+                        button: e.currentTarget,
+                        flipped: flip,
+                      });
+                    }}
                     className="p-2 hover:bg-slate-100 rounded"
+                    aria-label={`Actions for user ${u.username}`}
                   >
                     <MoreVertical size={18} />
                   </button>
-
-                  {openMenu === u._id && (
+                  {openMenu?.id === u._id && (
                     <div
                       ref={dropdownRef}
-                      className="absolute right-0 mt-2 w-36 bg-white shadow-lg rounded-lg border z-50"
+                      className="fixed w-36 bg-white shadow-lg rounded-lg border z-50"
+                      style={{
+                        top: openMenu.top,
+                        left: openMenu.left,
+                      }}
                     >
                       <button
                         onClick={() => {
@@ -227,8 +319,13 @@ export default function Users() {
 
                       {u.isActive ? (
                         <button
-                          onClick={() => {
-                            api.patch(`/users/${u._id}/disable`).then(load);
+                          onClick={async () => {
+                            try {
+                              await api.patch(`/users/${u._id}/disable`);
+                              load();
+                            } catch (error) {
+                              console.error("Failed to disable user:", error);
+                            }
                             setOpenMenu(null);
                           }}
                           className="block w-full text-left px-4 py-2 hover:bg-slate-100 text-yellow-600"
@@ -237,8 +334,13 @@ export default function Users() {
                         </button>
                       ) : (
                         <button
-                          onClick={() => {
-                            api.patch(`/users/${u._id}/enable`).then(load);
+                          onClick={async () => {
+                            try {
+                              await api.patch(`/users/${u._id}/enable`);
+                              load();
+                            } catch (error) {
+                              console.error("Failed to enable user:", error);
+                            }
                             setOpenMenu(null);
                           }}
                           className="block w-full text-left px-4 py-2 hover:bg-slate-100 text-green-600"
@@ -262,7 +364,7 @@ export default function Users() {
               </tr>
             ))}
 
-            {sortedUsers.length === 0 && (
+            {paginatedUsers.length === 0 && (
               <tr>
                 <td
                   colSpan={8}
@@ -276,69 +378,18 @@ export default function Users() {
         </table>
       </div>
 
-      {/* Floating Dropdown */}
-      {openMenu && (
-        <div
-          ref={dropdownRef}
-          className="absolute z-50 w-36 bg-white shadow-lg rounded-lg border"
-          style={{
-            top: openMenu.y,
-            left: openMenu.x,
-          }}
-        >
-          <button
-            onClick={() => {
-              const user = users.find(
-                (u) => u._id === openMenu.id
-              );
-              setEditUser(user);
-              setOpenMenu(null);
-            }}
-            className="block w-full text-left px-4 py-2 hover:bg-slate-100"
-          >
-            Edit
-          </button>
-
-          {users.find((u) => u._id === openMenu.id)
-            ?.isActive ? (
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center gap-2 mt-4">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
             <button
-              onClick={() => {
-                api
-                  .patch(
-                    `/users/${openMenu.id}/disable`
-                  )
-                  .then(load);
-                setOpenMenu(null);
-              }}
-              className="block w-full text-left px-4 py-2 hover:bg-slate-100 text-yellow-600"
+              key={page}
+              onClick={() => handlePageChange(page)}
+              className={`px-3 py-1 rounded ${currentPage === page ? "bg-blue-500 text-white" : "bg-gray-200"}`}
             >
-              Disable
+              {page}
             </button>
-          ) : (
-            <button
-              onClick={() => {
-                api
-                  .patch(
-                    `/users/${openMenu.id}/enable`
-                  )
-                  .then(load);
-                setOpenMenu(null);
-              }}
-              className="block w-full text-left px-4 py-2 hover:bg-slate-100 text-green-600"
-            >
-              Enable
-            </button>
-          )}
-
-          <button
-            onClick={() => {
-              setConfirmId(openMenu.id);
-              setOpenMenu(null);
-            }}
-            className="block w-full text-left px-4 py-2 hover:bg-slate-100 text-red-600"
-          >
-            Delete
-          </button>
+          ))}
         </div>
       )}
 
@@ -376,11 +427,13 @@ export default function Users() {
               </button>
               <button
                 onClick={async () => {
-                  await api.delete(
-                    `/users/${confirmId}`
-                  );
+                  try {
+                    await api.delete(`/users/${confirmId}`);
+                    load();
+                  } catch (error) {
+                    console.error("Failed to delete user:", error);
+                  }
                   setConfirmId(null);
-                  load();
                 }}
                 className="bg-red-600 text-white px-4 py-2 rounded"
               >
