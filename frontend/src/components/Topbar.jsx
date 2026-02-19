@@ -29,7 +29,7 @@ export default function Topbar() {
   };
 
   return (
-    <header className="h-14 bg-slate-900 text-slate-200 border-b border-slate-800 flex items-center justify-end px-4 gap-3">
+    <header className="h-14 bg-slate-900 text-slate-200 border-b border-slate-800 z-50 flex items-center justify-end px-4 gap-3">
       {/* Theme */}
       <button
         onClick={() => setDark(d => !d)}
