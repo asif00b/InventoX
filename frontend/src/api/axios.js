@@ -4,26 +4,30 @@ const api = axios.create({
   baseURL: `${import.meta.env.VITE_API_URL}/api`,
 });
 
+/* ================= REQUEST INTERCEPTOR ================= */
+
 api.interceptors.request.use((config) => {
   const auth = localStorage.getItem("auth");
 
   if (auth) {
-    const { token } = JSON.parse(auth);
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    const parsed = JSON.parse(auth);
+
+    if (parsed?.token) {
+      config.headers.Authorization = `Bearer ${parsed.token}`;
     }
   }
 
   return config;
 });
 
+/* ================= RESPONSE INTERCEPTOR ================= */
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.log("FULL ERROR:", error.response?.data);
-
     if (error.response?.status === 401) {
-      console.warn("Unauthorized - Redirecting to login...");
+      localStorage.removeItem("auth");
+      window.location.href = "/login";
     }
 
     return Promise.reject(error);

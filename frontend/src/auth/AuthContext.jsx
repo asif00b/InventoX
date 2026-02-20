@@ -1,58 +1,72 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { createContext, useContext, useState, useEffect } from "react";
 
 const AuthContext = createContext();
-export const useAuth = () => useContext(AuthContext);
+
+function getJwtExpiry(token) {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.exp * 1000; // exp is in seconds
+  } catch {
+    return null;
+  }
+}
 
 export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [role, setRole] = useState(null);
-  const [loading, setLoading] = useState(true); // ✅ added
+  const [loading, setLoading] = useState(true);
 
-  const navigate = useNavigate();
+  /* ================= RESTORE SESSION ================= */
 
-  // Restore auth on refresh
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem("auth"));
+    const stored = localStorage.getItem("auth");
 
-    if (saved && Date.now() <= saved.expiresAt) {
-      setToken(saved.token);
-      setRole(saved.role);
-    } else {
-      localStorage.removeItem("auth");
+    if (stored) {
+      const parsed = JSON.parse(stored);
+
+      if (parsed?.token) {
+        const expiry = getJwtExpiry(parsed.token);
+
+        if (!expiry || Date.now() > expiry) {
+          localStorage.removeItem("auth");
+        } else {
+          setToken(parsed.token);
+          setRole(parsed.role);
+        }
+      }
     }
 
-    setLoading(false); // ✅ important
+    setLoading(false);
   }, []);
 
-  // Login
-  const login = (t, r) => {
-    const expiresAt = Date.now() + 8 * 60 * 60 * 1000;
+  /* ================= LOGIN ================= */
 
+  const login = (jwtToken, userRole) => {
     localStorage.setItem(
       "auth",
-      JSON.stringify({ token: t, role: r, expiresAt })
+      JSON.stringify({
+        token: jwtToken,
+        role: userRole,
+      })
     );
 
-    setToken(t);
-    setRole(r);
-
-    navigate("/", { replace: true }); // ✅ FIXED
+    setToken(jwtToken);
+    setRole(userRole);
   };
 
-  // Logout
+  /* ================= LOGOUT ================= */
+
   const logout = () => {
     localStorage.removeItem("auth");
     setToken(null);
     setRole(null);
-    navigate("/login", { replace: true }); // cleaner
   };
 
   return (
-    <AuthContext.Provider
-      value={{ token, role, login, logout, loading }}
-    >
+    <AuthContext.Provider value={{ token, role, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
 };
+
+export const useAuth = () => useContext(AuthContext);

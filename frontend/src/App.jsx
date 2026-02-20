@@ -3,7 +3,6 @@ import { useAuth } from "./auth/AuthContext";
 import Login from "./pages/Login";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./auth/ProtectedRoute";
-
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import Stock from "./pages/Stock";
@@ -49,7 +48,14 @@ export default function App() {
           }
         />
 
-        <Route path="settings" element={<Settings />} />
+        <Route
+          path="settings"
+          element={
+            <ProtectedRoute roles={["SUPER_ADMIN", "ADMIN", "STAFF"]}>
+              <Settings />
+            </ProtectedRoute>
+          }
+          />
       </Route>
 
       {/* Proper Catch-All */}
